@@ -1,5 +1,10 @@
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 
+
+plcreader_raspberry
+plcreader_windows.exe
+plcreader_linux
+
 # Logs
 
 logs
