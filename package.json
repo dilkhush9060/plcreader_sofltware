@@ -1,0 +1,14 @@
+{
+  "name": "plc_reader_software",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.1"
+  }
+}
