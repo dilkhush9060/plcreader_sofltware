@@ -73,11 +73,11 @@ func (a *App) GetBoilerData() []BoilerData {
 	now := time.Now()
 	return []BoilerData{
 		{
-			ID:                 0,
+			ID:                 1,
 			ReactorTemp:        int(results[0]),
 			SeparatorTemp:      int(results[1]),
-			FurnaceTemp:        75,
-			CondenserTemp:      40,
+			FurnaceTemp:       int(results[2]),
+			CondenserTemp:      int(results[3]),
 			AtmTemp:            25,
 			ReactorPressure:    10,
 			GasTankPressure:    5,

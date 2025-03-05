@@ -14,7 +14,8 @@ function App() {
   );
   const [isModbusConnected, setIsModbusConnected] = useState<boolean>(false);
   const [boilerData, setBoilerData] = useState<BoilerData[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<string>("0"); // Default to "0"
+  const [connectionStatus, setConnectionStatus] =
+    useState<string>("Disconnected");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,8 +23,9 @@ function App() {
     const plantId = (form.elements[0] as HTMLInputElement).value;
     const comPort = (form.elements[1] as HTMLInputElement).value;
     try {
+      setConnectionStatus("Connecting...");
       const result = await Connect(plantId, comPort);
-      setConnectionStatus(result);
+      setConnectionStatus(result === "1" ? "Connected" : "Connection Failed");
       const connected = await IsModbusConnected();
       setIsModbusConnected(connected);
       console.log("Connection result:", result, "Modbus connected:", connected);
@@ -71,13 +73,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    let interval: number;
+    let interval: number | undefined;
 
     const fetchAndSendData = async () => {
       if (!isModbusConnected) {
         console.log("Modbus not connected, skipping fetch");
         setBoilerData([]);
-        setConnectionStatus("0"); // Reset to "0" when not connected
+        setConnectionStatus("Disconnected");
         return;
       }
 
@@ -100,12 +102,14 @@ function App() {
     };
 
     if (isModbusConnected) {
-      fetchAndSendData(); // Initial fetch
-      interval = setInterval(fetchAndSendData, 2000);
+      fetchAndSendData();
+      interval = setInterval(fetchAndSendData, 2000) as unknown as number;
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval !== undefined) {
+        clearInterval(interval);
+      }
     };
   }, [isModbusConnected, isSocketConnected]);
 
@@ -126,20 +130,20 @@ function App() {
           placeholder="Please Enter COM PORT i.e COM9"
         />
         <button
-          disabled={isModbusConnected} // Disable when connected
+          disabled={isModbusConnected}
           type="submit"
           className="bg-gray-700 text-white px-4 py-2 rounded-md font-medium uppercase disabled:bg-gray-400"
         >
           Connect
         </button>
       </form>
-      <p>{connectionStatus}</p> {/* Always show status, defaults to "0" */}
+      <p className="text-center mt-2">{connectionStatus}</p>
       <div className="flex items-center justify-around gap-8 flex-wrap mt-8">
         {boilerData.map((data, index) => (
           <div key={index} className="border-2 border-black rounded p-3 w-sm">
             <div className="flex items-center gap-3 justify-center">
               <h1 className="text-3xl font-semibold uppercase">
-                Boiler {index}
+                Boiler {data.id}
               </h1>
               <p className="font-medium uppercase">Active</p>
             </div>
