@@ -71,7 +71,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number;
 
     const fetchAndSendData = async () => {
       if (!isModbusConnected) {

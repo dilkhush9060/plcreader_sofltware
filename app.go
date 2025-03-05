@@ -64,7 +64,7 @@ func (a *App) GetBoilerData() []BoilerData {
 		return []BoilerData{}
 	}
 
-	results, err := a.client.ReadHoldingRegisters(0, 2)
+	results, err := a.client.ReadHoldingRegisters(4466, 100)
 	if err != nil {
 		runtime.LogError(a.ctx, "Modbus read error: "+err.Error())
 		return []BoilerData{}
