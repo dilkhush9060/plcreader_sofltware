@@ -34,16 +34,16 @@ type BoilerData struct {
 	AtmTemp            int    `json:"atmTemp"`
 	ReactorPressure    int    `json:"reactorPressure"`
 	GasTankPressure    int    `json:"gasTankPressure"`
-	ProcessStartTime   string `json:"processStartTime"` // Changed to string for HH:MM:SS
+	ProcessStartTime   string `json:"processStartTime"`
 	TimeOfReaction     string `json:"timeOfReaction"`
 	ProcessEndTime     string `json:"processEndTime"`
 	CoolingEndTime     string `json:"coolingEndTime"`
-	NitrogenPurging    int    `json:"nitrogenPurging"`    // Reverted to int
-	CarbonDoorStatus   int    `json:"carbonDoorStatus"`   // Reverted to int
-	CoCh4Leakage       int    `json:"coCh4Leakage"`       // Reverted to int
-	JaaliBlockage      int    `json:"jaaliBlockage"`      // Reverted to int
-	MachineMaintenance int    `json:"machineMaintenance"` // Reverted to int
-	AutoShutDown       int    `json:"autoShutDown"`       // Reverted to int
+	NitrogenPurging    int    `json:"nitrogenPurging"`
+	CarbonDoorStatus   int    `json:"carbonDoorStatus"`
+	CoCh4Leakage       int    `json:"coCh4Leakage"`
+	JaaliBlockage      int    `json:"jaaliBlockage"`
+	MachineMaintenance int    `json:"machineMaintenance"`
+	AutoShutDown       int    `json:"autoShutDown"`
 }
 
 // NewApp creates a new App application struct
@@ -90,6 +90,7 @@ func (a *App) LoadConfig() (Config, error) {
 }
 
 func (a *App) Connect(comPort string) bool {
+	// Use strict 7 data bits, even parity, 1 stop bit configuration
 	handler := modbus.NewASCIIClientHandler(comPort)
 	handler.BaudRate = 9600
 	handler.DataBits = 7
@@ -101,13 +102,13 @@ func (a *App) Connect(comPort string) bool {
 	err := handler.Connect()
 	if err != nil {
 		a.isModbusConnected = false
-		runtime.LogError(a.ctx, "Failed to connect to "+comPort+": "+err.Error())
+		runtime.LogError(a.ctx, fmt.Sprintf("Failed to connect with 7E1 to %s: %v", comPort, err))
 		return false
 	}
 
 	a.client = modbus.NewClient(handler)
 	a.isModbusConnected = true
-	runtime.LogInfo(a.ctx, "Connected to COM port: "+comPort)
+	runtime.LogInfo(a.ctx, "Connected with 7E1 to COM port: "+comPort)
 	return true
 }
 
@@ -116,13 +117,16 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 		return nil, fmt.Errorf("Modbus client not connected")
 	}
 
-	// Adjust startAddress and quantity based on the UI data (e.g., D368 to D409 covers 42 registers)
-	startAddress := uint16(4466) // Starting from D368 as per UI
-	quantity := uint16(42)      // Total registers for 3 boilers (14 registers per boiler x 3)
+	startAddress := uint16(368)
+	quantity := uint16(42)
 
 	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
 	if err != nil {
 		runtime.LogError(a.ctx, fmt.Sprintf("Error reading holding registers: %v", err))
+		// Log raw data for debugging
+		if results != nil {
+			runtime.LogInfo(a.ctx, fmt.Sprintf("Raw data: %v", results))
+		}
 		return nil, err
 	}
 
@@ -132,7 +136,7 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 	}
 
 	var boilerDataArray []BoilerData
-	registersPerBoiler := 14 // Each boiler has 14 data points (e.g., temps, pressures, indicators)
+	registersPerBoiler := 14
 
 	for boilerID := 0; boilerID < 3; boilerID++ {
 		startIdx := boilerID * registersPerBoiler
@@ -143,29 +147,44 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 		}
 
 		data := results[startIdx*2 : endIdx*2]
+		// Validate data before processing
+		if len(data) < 34 { // Minimum length for 17 registers (2 bytes each)
+			runtime.LogError(a.ctx, fmt.Sprintf("Insufficient data for boiler %d", boilerID+1))
+			continue
+		}
+
 		boiler := BoilerData{
-			ID:                 boilerID + 1, // Boiler 1, 2, 3
-			ReactorTemp:        int(binary.BigEndian.Uint16(data[0:2])),
-			SeparatorTemp:      int(binary.BigEndian.Uint16(data[2:4])),
-			FurnaceTemp:        int(binary.BigEndian.Uint16(data[4:6])),
-			CondenserTemp:      int(binary.BigEndian.Uint16(data[6:8])),
-			AtmTemp:            int(binary.BigEndian.Uint16(data[8:10])),
-			ReactorPressure:    int(binary.BigEndian.Uint16(data[10:12])),
-			GasTankPressure:    int(binary.BigEndian.Uint16(data[12:14])),
-			ProcessStartTime:   fmt.Sprintf("%02d:%02d:%02d", int(binary.BigEndian.Uint16(data[14:16])/3600), (int(binary.BigEndian.Uint16(data[14:16])/60)%60), int(binary.BigEndian.Uint16(data[14:16])%60)), // Example conversion
-			TimeOfReaction:     fmt.Sprintf("%02d:%02d:%02d", int(binary.BigEndian.Uint16(data[16:18])/3600), (int(binary.BigEndian.Uint16(data[16:18])/60)%60), int(binary.BigEndian.Uint16(data[16:18])%60)),
-			ProcessEndTime:     fmt.Sprintf("%02d:%02d:%02d", int(binary.BigEndian.Uint16(data[18:20])/3600), (int(binary.BigEndian.Uint16(data[18:20])/60)%60), int(binary.BigEndian.Uint16(data[18:20])%60)),
-			CoolingEndTime:     fmt.Sprintf("%02d:%02d:%02d", int(binary.BigEndian.Uint16(data[20:22])/3600), (int(binary.BigEndian.Uint16(data[20:22])/60)%60), int(binary.BigEndian.Uint16(data[20:22])%60)),
-			NitrogenPurging:    int(binary.BigEndian.Uint16(data[22:24])),    // Kept as int
-			CarbonDoorStatus:   int(binary.BigEndian.Uint16(data[24:26])),    // Kept as int
-			CoCh4Leakage:       int(binary.BigEndian.Uint16(data[26:28])),    // Kept as int
-			JaaliBlockage:      int(binary.BigEndian.Uint16(data[28:30])),    // Kept as int
-			MachineMaintenance: int(binary.BigEndian.Uint16(data[30:32])),    // Kept as int
-			AutoShutDown:       int(binary.BigEndian.Uint16(data[32:34])),    // Kept as int
+			ID:                 boilerID + 1,
+			ReactorTemp:        int(safeUint16(data[0:2])),
+			SeparatorTemp:      int(safeUint16(data[2:4])),
+			FurnaceTemp:        int(safeUint16(data[4:6])),
+			CondenserTemp:      int(safeUint16(data[6:8])),
+			AtmTemp:            int(safeUint16(data[8:10])),
+			ReactorPressure:    int(safeUint16(data[10:12])),
+			GasTankPressure:    int(safeUint16(data[12:14])),
+			ProcessStartTime:   fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[14:16])/3600), (int(safeUint16(data[14:16])/60)%60), int(safeUint16(data[14:16])%60)),
+			TimeOfReaction:     fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[16:18])/3600), (int(safeUint16(data[16:18])/60)%60), int(safeUint16(data[16:18])%60)),
+			ProcessEndTime:     fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[18:20])/3600), (int(safeUint16(data[18:20])/60)%60), int(safeUint16(data[18:20])%60)),
+			CoolingEndTime:     fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[20:22])/3600), (int(safeUint16(data[20:22])/60)%60), int(safeUint16(data[20:22])%60)),
+			NitrogenPurging:    int(safeUint16(data[22:24])),
+			CarbonDoorStatus:   int(safeUint16(data[24:26])),
+			CoCh4Leakage:       int(safeUint16(data[26:28])),
+			JaaliBlockage:      int(safeUint16(data[28:30])),
+			MachineMaintenance: int(safeUint16(data[30:32])),
+			AutoShutDown:       int(safeUint16(data[32:34])),
 		}
 		boilerDataArray = append(boilerDataArray, boiler)
 	}
 
 	runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d holding registers starting at address %d", quantity, startAddress))
 	return boilerDataArray, nil
+}
+
+// Helper function to safely convert bytes to uint16, logging errors
+func safeUint16(data []byte) uint16 {
+	if len(data) < 2 {
+		runtime.LogError(context.Background(), "Invalid data length for uint16 conversion")
+		return 0
+	}
+	return binary.BigEndian.Uint16(data)
 }
