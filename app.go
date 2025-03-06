@@ -63,8 +63,9 @@ func (a *App) GetBoilerData() []BoilerData {
 		runtime.LogInfo(a.ctx, "Modbus not connected, returning empty data")
 		return []BoilerData{}
 	}
-
-	results, err := a.client.ReadHoldingRegisters(4466, 100)
+	startAddress := uint16(4466)
+	quantity := uint16(100)
+	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
 	if err != nil {
 		runtime.LogError(a.ctx, "Modbus read error: "+err.Error())
 		return []BoilerData{}
