@@ -7,10 +7,10 @@ export interface BoilerData {
   atmTemp: number;
   reactorPressure: number;
   gasTankPressure: number;
-  processStartTime: string;
-  timeOfReaction: string;
-  processEndTime: string;
-  coolingEndTime: string;
+  // processStartTime: string;
+  // timeOfReaction: string;
+  // processEndTime: string;
+  // coolingEndTime: string;
   nitrogenPurging: number;
   carbonDoorStatus: number;
   coCh4Leakage: number;

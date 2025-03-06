@@ -18,26 +18,26 @@ export default function App() {
 
   //setBoilerData
   const [boilerData, setBoilerData] = useState<BoilerData[]>([
-    // {
-    //   id: 0,
-    //   reactorTemp: 0,
-    //   separatorTemp: 0,
-    //   furnaceTemp: 0,
-    //   condenserTemp: 0,
-    //   atmTemp: 0,
-    //   reactorPressure: 0,
-    //   gasTankPressure: 0,
-    //   processStartTime: 0,
-    //   timeOfReaction: 0,
-    //   processEndTime: 0,
-    //   coolingEndTime: 0,
-    //   nitrogenPurging: 0,
-    //   carbonDoorStatus: 0,
-    //   coCh4Leakage: 0,
-    //   jaaliBlockage: 0,
-    //   machineMaintenance: 0,
-    //   autoShutDown: 0,
-    // },
+    {
+      id: 0,
+      reactorTemp: 0,
+      separatorTemp: 0,
+      furnaceTemp: 0,
+      condenserTemp: 0,
+      atmTemp: 0,
+      reactorPressure: 0,
+      gasTankPressure: 0,
+      // processStartTime: "",
+      // timeOfReaction: "",
+      // processEndTime: "",
+      // coolingEndTime: "",
+      nitrogenPurging: 0,
+      carbonDoorStatus: 0,
+      coCh4Leakage: 0,
+      jaaliBlockage: 0,
+      machineMaintenance: 0,
+      autoShutDown: 0,
+    },
   ]);
 
   // socket data
@@ -211,7 +211,7 @@ export default function App() {
               <Tab label="Gas Tank Pressure">{data.gasTankPressure}</Tab>
             </div>
             {/*  */}
-            <div className="flex flex-col mt-3 p-2 gap-3">
+            {/* <div className="flex flex-col mt-3 p-2 gap-3">
               <h3 className="uppercase text-center text-2xl font-semibold">
                 Operational Outputs
               </h3>
@@ -219,7 +219,7 @@ export default function App() {
               <Tab label="Time of Reaction">{data.timeOfReaction}</Tab>
               <Tab label="Process End Time">{data.processEndTime}</Tab>
               <Tab label="Cooling End Time">{data.coolingEndTime}</Tab>
-            </div>
+            </div> */}
             {/*  */}
             <div className="flex flex-col mt-3 p-2 gap-3">
               <h3 className="uppercase text-center text-2xl font-semibold">

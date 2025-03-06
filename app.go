@@ -27,23 +27,19 @@ type Config struct {
 
 type BoilerData struct {
 	ID                 int    `json:"id"`
-	ReactorTemp        int    `json:"reactorTemp"`
-	SeparatorTemp      int    `json:"separatorTemp"`
-	FurnaceTemp        int    `json:"furnaceTemp"`
-	CondenserTemp      int    `json:"condenserTemp"`
-	AtmTemp            int    `json:"atmTemp"`
-	ReactorPressure    int    `json:"reactorPressure"`
-	GasTankPressure    int    `json:"gasTankPressure"`
-	ProcessStartTime   string `json:"processStartTime"`
-	TimeOfReaction     string `json:"timeOfReaction"`
-	ProcessEndTime     string `json:"processEndTime"`
-	CoolingEndTime     string `json:"coolingEndTime"`
-	NitrogenPurging    int    `json:"nitrogenPurging"`
-	CarbonDoorStatus   int    `json:"carbonDoorStatus"`
-	CoCh4Leakage       int    `json:"coCh4Leakage"`
-	JaaliBlockage      int    `json:"jaaliBlockage"`
-	MachineMaintenance int    `json:"machineMaintenance"`
-	AutoShutDown       int    `json:"autoShutDown"`
+	ReactorTemp        uint16 `json:"reactorTemp"`
+	SeparatorTemp      uint16 `json:"separatorTemp"`
+	FurnaceTemp        uint16 `json:"furnaceTemp"`
+	CondenserTemp      uint16 `json:"condenserTemp"`
+	AtmTemp            uint16 `json:"atmTemp"`
+	ReactorPressure    uint16 `json:"reactorPressure"`
+	GasTankPressure    uint16 `json:"gasTankPressure"`
+	NitrogenPurging    uint16 `json:"nitrogenPurging"`
+	CarbonDoorStatus   uint16 `json:"carbonDoorStatus"`
+	CoCh4Leakage       uint16 `json:"coCh4Leakage"`
+	JaaliBlockage      uint16 `json:"jaaliBlockage"`
+	MachineMaintenance uint16 `json:"machineMaintenance"`
+	AutoShutDown       uint16 `json:"autoShutDown"`
 }
 
 // NewApp creates a new App application struct
@@ -126,43 +122,28 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 	}
 
 	if len(results) != int(quantity)*2 {
-		return nil, fmt.Errorf("invalid register data length")
+		runtime.LogError(a.ctx, "Invalid register data length")
+		return nil, fmt.Errorf("invalid register data length, expected %d bytes, got %d", quantity*2, len(results))
 	}
 
-	var boilerDataArray []BoilerData
-	registersPerBoiler := 14
-
-	for boilerID := 0; boilerID < 3; boilerID++ {
-		startIdx := boilerID * registersPerBoiler
-		endIdx := startIdx + registersPerBoiler
-
-		if endIdx*2 > len(results) {
-			break
-		}
-
-		data := results[startIdx*2 : endIdx*2]
-		boiler := BoilerData{
-			ID:              boilerID + 1,
-			ReactorTemp:     int(safeUint16(data[0:2])),
-			SeparatorTemp:   int(safeUint16(data[2:4])),
-			FurnaceTemp:     int(safeUint16(data[4:6])),
-			CondenserTemp:   int(safeUint16(data[6:8])),
-			AtmTemp:         int(safeUint16(data[8:10])),
-			ReactorPressure: int(safeUint16(data[10:12])),
-			GasTankPressure: int(safeUint16(data[12:14])),
-		}
-		boilerDataArray = append(boilerDataArray, boiler)
+	data := make([]BoilerData, 1)
+	data[0] = BoilerData{
+		ID:                 1,
+		ReactorTemp:        binary.BigEndian.Uint16(results[0:2]),
+		SeparatorTemp:      binary.BigEndian.Uint16(results[2:4]),
+		FurnaceTemp:        binary.BigEndian.Uint16(results[4:6]),
+		CondenserTemp:      binary.BigEndian.Uint16(results[6:8]),
+		AtmTemp:            binary.BigEndian.Uint16(results[8:10]),
+		ReactorPressure:    binary.BigEndian.Uint16(results[10:12]),
+		GasTankPressure:    binary.BigEndian.Uint16(results[12:14]),
+		NitrogenPurging:    binary.BigEndian.Uint16(results[14:16]),
+		CarbonDoorStatus:   binary.BigEndian.Uint16(results[16:18]),
+		CoCh4Leakage:       binary.BigEndian.Uint16(results[18:20]),
+		JaaliBlockage:      binary.BigEndian.Uint16(results[20:22]),
+		MachineMaintenance: binary.BigEndian.Uint16(results[22:24]),
+		AutoShutDown:       binary.BigEndian.Uint16(results[24:26]),
 	}
 
 	runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d holding registers starting at address %d", quantity, startAddress))
-	return boilerDataArray, nil
+	return data, nil
 }
-
-func safeUint16(data []byte) uint16 {
-	if len(data) < 2 {
-		runtime.LogError(context.Background(), "Invalid data length for uint16 conversion")
-		return 0
-	}
-	return binary.BigEndian.Uint16(data)
-}
-

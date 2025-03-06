@@ -9,10 +9,6 @@ export namespace main {
 	    atmTemp: number;
 	    reactorPressure: number;
 	    gasTankPressure: number;
-	    processStartTime: string;
-	    timeOfReaction: string;
-	    processEndTime: string;
-	    coolingEndTime: string;
 	    nitrogenPurging: number;
 	    carbonDoorStatus: number;
 	    coCh4Leakage: number;
@@ -34,10 +30,6 @@ export namespace main {
 	        this.atmTemp = source["atmTemp"];
 	        this.reactorPressure = source["reactorPressure"];
 	        this.gasTankPressure = source["gasTankPressure"];
-	        this.processStartTime = source["processStartTime"];
-	        this.timeOfReaction = source["timeOfReaction"];
-	        this.processEndTime = source["processEndTime"];
-	        this.coolingEndTime = source["coolingEndTime"];
 	        this.nitrogenPurging = source["nitrogenPurging"];
 	        this.carbonDoorStatus = source["carbonDoorStatus"];
 	        this.coCh4Leakage = source["coCh4Leakage"];
