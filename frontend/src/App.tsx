@@ -108,7 +108,9 @@ export default function App() {
 
       try {
         const data = await PLC_DATA();
-        setBoilerData(data);
+        console.log(data);
+
+        // setBoilerData(data);
 
         if (isSocketConnected) {
           socket.emit("realtime", data);
