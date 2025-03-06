@@ -107,7 +107,7 @@ func (a *App) Connect(plantID, comPort string) string {
 	handler := modbus.NewRTUClientHandler(comPort)
 	handler.BaudRate = 9600
 	handler.DataBits = 7
-	handler.Parity = "N"
+	handler.Parity = "E"
 	handler.StopBits = 1
 	handler.SlaveId = 1
 	handler.Timeout = 2 * time.Second
