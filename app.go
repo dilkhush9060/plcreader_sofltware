@@ -104,13 +104,13 @@ func (a *App) Connect(plantID, comPort string) string {
 		a.isModbusConnected = false
 	}
 
-	handler := modbus.NewRTUClientHandler(comPort)
+	handler := modbus.NewASCIIClientHandler(comPort)
 	handler.BaudRate = 9600
 	handler.DataBits = 7
 	handler.Parity = "E"
 	handler.StopBits = 1
 	handler.SlaveId = 1
-	handler.Timeout = 2 * time.Second
+	handler.Timeout = 5 * time.Second
 
 	err := handler.Connect()
 	if err != nil {
