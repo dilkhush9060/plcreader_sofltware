@@ -60,16 +60,26 @@ type Config struct {
 	COMPort string `json:"comPort"`
 }
 
-// readHoldingRegisters reads specified number of holding registers from the Modbus client
 func (a *App) readHoldingRegisters(startAddress, quantity uint16) ([]int, error) {
 	if !a.isModbusConnected || a.client == nil {
 		return nil, fmt.Errorf("Modbus not connected")
 	}
 
-	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
+	var results []byte
+	var err error
+	for retry := 0; retry < 3; retry++ {
+		results, err = a.client.ReadHoldingRegisters(startAddress, quantity)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second) // Wait before retrying
+	}
 	if err != nil {
+		runtime.LogError(a.ctx, "Raw data received: "+string(results))
 		return nil, fmt.Errorf("error reading holding registers: %v", err)
 	}
+
+	runtime.LogInfo(a.ctx, "Raw data received: "+string(results))
 
 	// Filter out non-hexadecimal characters
 	filteredResults := make([]byte, 0)
@@ -93,6 +103,14 @@ func (a *App) readHoldingRegisters(startAddress, quantity uint16) ([]int, error)
 		intResults = append(intResults, int(intVal))
 	}
 
+	// Handle insufficient data
+	if len(intResults) < 4 {
+		runtime.LogWarning(a.ctx, "Insufficient data received from Modbus")
+		for len(intResults) < 4 {
+			intResults = append(intResults, 0)
+		}
+	}
+
 	return intResults, nil
 }
 
@@ -103,12 +121,6 @@ func (a *App) GetBoilerData() []BoilerData {
 	intResults, err := a.readHoldingRegisters(startAddress, quantity)
 	if err != nil {
 		runtime.LogError(a.ctx, "Failed to read Modbus registers: "+err.Error())
-		return []BoilerData{}
-	}
-
-	// Ensure we have enough data to populate the BoilerData struct
-	if len(intResults) < 4 {
-		runtime.LogError(a.ctx, "Insufficient data received from Modbus")
 		return []BoilerData{}
 	}
 
