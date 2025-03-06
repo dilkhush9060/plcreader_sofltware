@@ -94,7 +94,8 @@ func (a *App) LoadConfig() (Config, error) {
 }
 
 // connect function
-func (a *App) Connect(plantId string,comPort string) bool {
+func (a *App) Connect(comPort string) bool {
+
 	handler := modbus.NewASCIIClientHandler(comPort)
 	handler.BaudRate = 9600
 	handler.DataBits = 7
@@ -107,7 +108,7 @@ func (a *App) Connect(plantId string,comPort string) bool {
 	err := handler.Connect()
 	if err != nil {
 			a.isModbusConnected = false
-			runtime.LogError(a.ctx, "Failed to connect to COM port: "+err.Error())
+			runtime.LogError(a.ctx, "Failed to connect to" + comPort + " port: "+err.Error())
 			return false
 	}
 
