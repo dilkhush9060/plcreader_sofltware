@@ -90,7 +90,6 @@ func (a *App) LoadConfig() (Config, error) {
 }
 
 func (a *App) Connect(comPort string) bool {
-	// Use strict 7 data bits, even parity, 1 stop bit configuration
 	handler := modbus.NewASCIIClientHandler(comPort)
 	handler.BaudRate = 9600
 	handler.DataBits = 7
@@ -102,13 +101,13 @@ func (a *App) Connect(comPort string) bool {
 	err := handler.Connect()
 	if err != nil {
 		a.isModbusConnected = false
-		runtime.LogError(a.ctx, fmt.Sprintf("Failed to connect with 7E1 to %s: %v", comPort, err))
+		runtime.LogError(a.ctx, fmt.Sprintf("Failed to connect with ASCII 7E1 to %s: %v", comPort, err))
 		return false
 	}
 
 	a.client = modbus.NewClient(handler)
 	a.isModbusConnected = true
-	runtime.LogInfo(a.ctx, "Connected with 7E1 to COM port: "+comPort)
+	runtime.LogInfo(a.ctx, "Connected with ASCII 7E1 to COM port: "+comPort)
 	return true
 }
 
@@ -123,16 +122,11 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
 	if err != nil {
 		runtime.LogError(a.ctx, fmt.Sprintf("Error reading holding registers: %v", err))
-		// Log raw data for debugging
-		if results != nil {
-			runtime.LogInfo(a.ctx, fmt.Sprintf("Raw data: %v", results))
-		}
 		return nil, err
 	}
 
 	if len(results) != int(quantity)*2 {
-		runtime.LogError(a.ctx, "Invalid register data length")
-		return nil, fmt.Errorf("invalid register data length, expected %d bytes, got %d", quantity*2, len(results))
+		return nil, fmt.Errorf("invalid register data length")
 	}
 
 	var boilerDataArray []BoilerData
@@ -147,31 +141,15 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 		}
 
 		data := results[startIdx*2 : endIdx*2]
-		// Validate data before processing
-		if len(data) < 34 { // Minimum length for 17 registers (2 bytes each)
-			runtime.LogError(a.ctx, fmt.Sprintf("Insufficient data for boiler %d", boilerID+1))
-			continue
-		}
-
 		boiler := BoilerData{
-			ID:                 boilerID + 1,
-			ReactorTemp:        int(safeUint16(data[0:2])),
-			SeparatorTemp:      int(safeUint16(data[2:4])),
-			FurnaceTemp:        int(safeUint16(data[4:6])),
-			CondenserTemp:      int(safeUint16(data[6:8])),
-			AtmTemp:            int(safeUint16(data[8:10])),
-			ReactorPressure:    int(safeUint16(data[10:12])),
-			GasTankPressure:    int(safeUint16(data[12:14])),
-			ProcessStartTime:   fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[14:16])/3600), (int(safeUint16(data[14:16])/60)%60), int(safeUint16(data[14:16])%60)),
-			TimeOfReaction:     fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[16:18])/3600), (int(safeUint16(data[16:18])/60)%60), int(safeUint16(data[16:18])%60)),
-			ProcessEndTime:     fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[18:20])/3600), (int(safeUint16(data[18:20])/60)%60), int(safeUint16(data[18:20])%60)),
-			CoolingEndTime:     fmt.Sprintf("%02d:%02d:%02d", int(safeUint16(data[20:22])/3600), (int(safeUint16(data[20:22])/60)%60), int(safeUint16(data[20:22])%60)),
-			NitrogenPurging:    int(safeUint16(data[22:24])),
-			CarbonDoorStatus:   int(safeUint16(data[24:26])),
-			CoCh4Leakage:       int(safeUint16(data[26:28])),
-			JaaliBlockage:      int(safeUint16(data[28:30])),
-			MachineMaintenance: int(safeUint16(data[30:32])),
-			AutoShutDown:       int(safeUint16(data[32:34])),
+			ID:              boilerID + 1,
+			ReactorTemp:     int(safeUint16(data[0:2])),
+			SeparatorTemp:   int(safeUint16(data[2:4])),
+			FurnaceTemp:     int(safeUint16(data[4:6])),
+			CondenserTemp:   int(safeUint16(data[6:8])),
+			AtmTemp:         int(safeUint16(data[8:10])),
+			ReactorPressure: int(safeUint16(data[10:12])),
+			GasTankPressure: int(safeUint16(data[12:14])),
 		}
 		boilerDataArray = append(boilerDataArray, boiler)
 	}
@@ -180,7 +158,6 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 	return boilerDataArray, nil
 }
 
-// Helper function to safely convert bytes to uint16, logging errors
 func safeUint16(data []byte) uint16 {
 	if len(data) < 2 {
 		runtime.LogError(context.Background(), "Invalid data length for uint16 conversion")
@@ -188,3 +165,4 @@ func safeUint16(data []byte) uint16 {
 	}
 	return binary.BigEndian.Uint16(data)
 }
+
