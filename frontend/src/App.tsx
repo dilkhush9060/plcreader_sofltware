@@ -18,26 +18,26 @@ export default function App() {
 
   //setBoilerData
   const [boilerData, setBoilerData] = useState<BoilerData[]>([
-    {
-      id: 0,
-      reactorTemp: 0,
-      separatorTemp: 0,
-      furnaceTemp: 0,
-      condenserTemp: 0,
-      atmTemp: 0,
-      reactorPressure: 0,
-      gasTankPressure: 0,
-      processStartTime: 0,
-      timeOfReaction: 0,
-      processEndTime: 0,
-      coolingEndTime: 0,
-      nitrogenPurging: 0,
-      carbonDoorStatus: 0,
-      coCh4Leakage: 0,
-      jaaliBlockage: 0,
-      machineMaintenance: 0,
-      autoShutDown: 0,
-    },
+    // {
+    //   id: 0,
+    //   reactorTemp: 0,
+    //   separatorTemp: 0,
+    //   furnaceTemp: 0,
+    //   condenserTemp: 0,
+    //   atmTemp: 0,
+    //   reactorPressure: 0,
+    //   gasTankPressure: 0,
+    //   processStartTime: 0,
+    //   timeOfReaction: 0,
+    //   processEndTime: 0,
+    //   coolingEndTime: 0,
+    //   nitrogenPurging: 0,
+    //   carbonDoorStatus: 0,
+    //   coCh4Leakage: 0,
+    //   jaaliBlockage: 0,
+    //   machineMaintenance: 0,
+    //   autoShutDown: 0,
+    // },
   ]);
 
   // socket data

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App struct remains the same
+// App struct
 type App struct {
 	ctx              context.Context
 	client           modbus.Client
@@ -24,16 +25,15 @@ type Config struct {
 	COMPort string `json:"comPort"`
 }
 
-
 type BoilerData struct {
-	ID                 int    `json:"id"`
-	ReactorTemp        int    `json:"reactorTemp"`
-	SeparatorTemp      int    `json:"separatorTemp"`
-	FurnaceTemp        int    `json:"furnaceTemp"`
-	CondenserTemp      int    `json:"condenserTemp"`
-	AtmTemp            int    `json:"atmTemp"`
-	ReactorPressure    int    `json:"reactorPressure"`
-	GasTankPressure    int    `json:"gasTankPressure"`
+	ID                 int `json:"id"`
+	ReactorTemp        int `json:"reactorTemp"`
+	SeparatorTemp      int `json:"separatorTemp"`
+	FurnaceTemp        int `json:"furnaceTemp"`
+	CondenserTemp      int `json:"condenserTemp"`
+	AtmTemp            int `json:"atmTemp"`
+	ReactorPressure    int `json:"reactorPressure"`
+	GasTankPressure    int `json:"gasTankPressure"`
 	ProcessStartTime   int `json:"processStartTime"`
 	TimeOfReaction     int `json:"timeOfReaction"`
 	ProcessEndTime     int `json:"processEndTime"`
@@ -46,7 +46,6 @@ type BoilerData struct {
 	AutoShutDown       int `json:"autoShutDown"`
 }
 
-
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
@@ -54,12 +53,11 @@ func NewApp() *App {
 	}
 }
 
-// startup is called when the app starts. The context is saved
+// startup is called when the app starts
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-//save config
 func (a *App) SaveConfig(config Config) error {
 	configPath := filepath.Join(".", "config.json")
 	data, err := json.MarshalIndent(config, "", "  ")
@@ -72,16 +70,14 @@ func (a *App) SaveConfig(config Config) error {
 	return nil
 }
 
-// load config
 func (a *App) LoadConfig() (Config, error) {
 	configPath := filepath.Join(".", "config.json")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		defaultConfig := Config{} // Initialize with default values if needed
+		defaultConfig := Config{}
 		if err := a.SaveConfig(defaultConfig); err != nil {
 			return Config{}, fmt.Errorf("failed to create default config: %v", err)
 		}
 	}
-
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to read config file: %v", err)
@@ -93,9 +89,7 @@ func (a *App) LoadConfig() (Config, error) {
 	return config, nil
 }
 
-// connect function
 func (a *App) Connect(comPort string) bool {
-
 	handler := modbus.NewASCIIClientHandler(comPort)
 	handler.BaudRate = 9600
 	handler.DataBits = 7
@@ -104,24 +98,19 @@ func (a *App) Connect(comPort string) bool {
 	handler.SlaveId = 1
 	handler.Timeout = 10 * time.Second
 
-
 	err := handler.Connect()
 	if err != nil {
-			a.isModbusConnected = false
-			runtime.LogError(a.ctx, "Failed to connect to" + comPort + " port: "+err.Error())
-			return false
+		a.isModbusConnected = false
+		runtime.LogError(a.ctx, "Failed to connect to "+comPort+": "+err.Error())
+		return false
 	}
 
 	a.client = modbus.NewClient(handler)
 	a.isModbusConnected = true
 	runtime.LogInfo(a.ctx, "Connected to COM port: "+comPort)
-
 	return true
 }
 
-
-
-// get plc data
 func (a *App) PLC_DATA() ([]BoilerData, error) {
 	startAddress := uint16(4466)
 	quantity := uint16(20)
@@ -132,11 +121,18 @@ func (a *App) PLC_DATA() ([]BoilerData, error) {
 		return nil, err
 	}
 
+	if len(results)%2 != 0 {
+		runtime.LogError(a.ctx, "Invalid register data length")
+		return nil, fmt.Errorf("invalid register data length")
+	}
+
 	var boilerDataArray []BoilerData
+
 	for i := 0; i < len(results); i += 2 {
+		value := binary.BigEndian.Uint16(results[i : i+2])
 		boilerData := BoilerData{
-			ID: i / 2,
-			ReactorTemp: int(results[i])<<8 | int(results[i+1]),
+			ID:          i / 2,
+			ReactorTemp: int(value),
 		}
 		boilerDataArray = append(boilerDataArray, boilerData)
 	}
