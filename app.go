@@ -24,6 +24,29 @@ type Config struct {
 	COMPort string `json:"comPort"`
 }
 
+
+type BoilerData struct {
+	ID                 int    `json:"id"`
+	ReactorTemp        int    `json:"reactorTemp"`
+	SeparatorTemp      int    `json:"separatorTemp"`
+	FurnaceTemp        int    `json:"furnaceTemp"`
+	CondenserTemp      int    `json:"condenserTemp"`
+	AtmTemp            int    `json:"atmTemp"`
+	ReactorPressure    int    `json:"reactorPressure"`
+	GasTankPressure    int    `json:"gasTankPressure"`
+	ProcessStartTime   int `json:"processStartTime"`
+	TimeOfReaction     int `json:"timeOfReaction"`
+	ProcessEndTime     int `json:"processEndTime"`
+	CoolingEndTime     int `json:"coolingEndTime"`
+	NitrogenPurging    int `json:"nitrogenPurging"`
+	CarbonDoorStatus   int `json:"carbonDoorStatus"`
+	CoCh4Leakage       int `json:"coCh4Leakage"`
+	JaaliBlockage      int `json:"jaaliBlockage"`
+	MachineMaintenance int `json:"machineMaintenance"`
+	AutoShutDown       int `json:"autoShutDown"`
+}
+
+
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
@@ -72,7 +95,6 @@ func (a *App) LoadConfig() (Config, error) {
 
 // connect function
 func (a *App) Connect(plantId string,comPort string) bool {
-	
 	handler := modbus.NewASCIIClientHandler(comPort)
 	handler.BaudRate = 9600
 	handler.DataBits = 7
@@ -97,10 +119,24 @@ func (a *App) Connect(plantId string,comPort string) bool {
 }
 
 
-// func (a *App) PLC_DATA() bool{
 
+// get plc data
+func (a *App) PLC_DATA() bool{
+	// data
+	startAddress := uint16(4097)
+  quantity := uint16(2)
 
+		// result
+	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
+	if err != nil {
+		runtime.LogInfo(a.ctx,"error reading holding registers: %v")
+		return false
+	}
 
-// 	a.client.ReadHoldingRegisters()
-// 	return true
-// }
+	// Print the results
+	fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
+	for i, value := range results {
+			fmt.Printf("Register %d (address %d): %d\n", i, startAddress+uint16(i), value)
+	}
+	 return true
+}
