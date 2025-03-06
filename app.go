@@ -105,6 +105,7 @@ func (a *App) PLC_DATA() ([]byte, error) {
 		return nil, err
 	}
 
+
 	runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d holding registers starting at address %d", quantity, startAddress))
 	return results, nil
 }
