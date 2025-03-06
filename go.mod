@@ -1,4 +1,4 @@
-module PLC_Reader
+module learn
 
 go 1.23
 

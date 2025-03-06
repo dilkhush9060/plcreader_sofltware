@@ -6,7 +6,6 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-
 )
 
 //go:embed all:frontend/dist
@@ -16,19 +15,19 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create application with option
+	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "PLC_Reader",
+		Title:  "learn",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		OnStartup: app.Startup, 
+	
+		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,
 		},
-		
 	})
 
 	if err != nil {

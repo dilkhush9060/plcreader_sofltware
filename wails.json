@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "PLC Reader",
-  "outputfilename": "PLC_READER",
+  "name": "learn",
+  "outputfilename": "learn",
   "frontend:install": "pnpm install",
   "frontend:build": "pnpm run build",
   "frontend:dev:watcher": "pnpm run dev",
