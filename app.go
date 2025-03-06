@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/goburrow/modbus"
@@ -12,8 +13,8 @@ import (
 )
 
 type App struct {
-	ctx             context.Context
-	client          modbus.Client
+	ctx              context.Context
+	client           modbus.Client
 	isModbusConnected bool
 }
 
@@ -63,11 +64,43 @@ func (a *App) GetBoilerData() []BoilerData {
 		runtime.LogInfo(a.ctx, "Modbus not connected, returning empty data")
 		return []BoilerData{}
 	}
+
 	startAddress := uint16(4466)
 	quantity := uint16(100)
 	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
+
 	if err != nil {
 		runtime.LogError(a.ctx, "Modbus read error: "+err.Error())
+		runtime.LogError(a.ctx, "Raw data received: "+string(results))
+		return []BoilerData{}
+	}
+
+	// Filter out non-hexadecimal characters
+	filteredResults := make([]byte, 0)
+	for _, b := range results {
+		if (b >= '0' && b <= '9') || (b >= 'A' && b <= 'F') || (b >= 'a' && b <= 'f') {
+			filteredResults = append(filteredResults, b)
+		}
+	}
+
+	// Convert filtered results to integers
+	var intResults []int
+	for i := 0; i < len(filteredResults); i += 2 {
+		if i+1 >= len(filteredResults) {
+			break // Skip incomplete pairs
+		}
+		hexStr := string(filteredResults[i]) + string(filteredResults[i+1])
+		intVal, err := strconv.ParseInt(hexStr, 16, 16)
+		if err != nil {
+			runtime.LogError(a.ctx, "Failed to parse hex: "+err.Error())
+			return []BoilerData{}
+		}
+		intResults = append(intResults, int(intVal))
+	}
+
+	// Ensure we have enough data to populate the BoilerData struct
+	if len(intResults) < 4 {
+		runtime.LogError(a.ctx, "Insufficient data received from Modbus")
 		return []BoilerData{}
 	}
 
@@ -75,10 +108,10 @@ func (a *App) GetBoilerData() []BoilerData {
 	return []BoilerData{
 		{
 			ID:                 1,
-			ReactorTemp:        int(results[0]),
-			SeparatorTemp:      int(results[1]),
-			FurnaceTemp:       int(results[2]),
-			CondenserTemp:      int(results[3]),
+			ReactorTemp:        intResults[0],
+			SeparatorTemp:      intResults[1],
+			FurnaceTemp:        intResults[2],
+			CondenserTemp:      intResults[3],
 			AtmTemp:            25,
 			ReactorPressure:    10,
 			GasTankPressure:    5,
@@ -111,7 +144,7 @@ func (a *App) Connect(plantID, comPort string) string {
 	handler.Parity = "E"
 	handler.StopBits = 1
 	handler.SlaveId = 1
-	handler.Timeout = 5 * time.Second
+	handler.Timeout = 10 * time.Second // Increased timeout
 
 	err := handler.Connect()
 	if err != nil {
