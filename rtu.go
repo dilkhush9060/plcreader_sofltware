@@ -1,11 +1,11 @@
 package main
 
 import (
-    "fmt"
-    "log"
-    "time"
+	"fmt"
+	"log"
+	"time"
 
-    "github.com/goburrow/modbus"
+	"github.com/goburrow/modbus"
 )
 
 // readHoldingRegisters reads specified number of holding registers from the Modbus client
@@ -44,8 +44,8 @@ func main() {
     client := modbus.NewClient(handler)
 
     // Define reading parameters
-    startAddress := uint16(4097)
-    quantity := uint16(2)
+    startAddress := uint16(4466)
+    quantity := uint16(50)
 
     // Create a ticker that triggers every 5 seconds
     ticker := time.NewTicker(5 * time.Second)
