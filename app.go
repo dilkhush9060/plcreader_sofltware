@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -59,20 +60,15 @@ type Config struct {
 	COMPort string `json:"comPort"`
 }
 
-func (a *App) GetBoilerData() []BoilerData {
+// readHoldingRegisters reads specified number of holding registers from the Modbus client
+func (a *App) readHoldingRegisters(startAddress, quantity uint16) ([]int, error) {
 	if !a.isModbusConnected || a.client == nil {
-		runtime.LogInfo(a.ctx, "Modbus not connected, returning empty data")
-		return []BoilerData{}
+		return nil, fmt.Errorf("Modbus not connected")
 	}
 
-	startAddress := uint16(4466)
-	quantity := uint16(100)
 	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
-
 	if err != nil {
-		runtime.LogError(a.ctx, "Modbus read error: "+err.Error())
-		runtime.LogError(a.ctx, "Raw data received: "+string(results))
-		return []BoilerData{}
+		return nil, fmt.Errorf("error reading holding registers: %v", err)
 	}
 
 	// Filter out non-hexadecimal characters
@@ -92,10 +88,22 @@ func (a *App) GetBoilerData() []BoilerData {
 		hexStr := string(filteredResults[i]) + string(filteredResults[i+1])
 		intVal, err := strconv.ParseInt(hexStr, 16, 16)
 		if err != nil {
-			runtime.LogError(a.ctx, "Failed to parse hex: "+err.Error())
-			return []BoilerData{}
+			return nil, fmt.Errorf("failed to parse hex: %v", err)
 		}
 		intResults = append(intResults, int(intVal))
+	}
+
+	return intResults, nil
+}
+
+func (a *App) GetBoilerData() []BoilerData {
+	startAddress := uint16(4466)
+	quantity := uint16(4) // Read 4 registers for ReactorTemp, SeparatorTemp, FurnaceTemp, CondenserTemp
+
+	intResults, err := a.readHoldingRegisters(startAddress, quantity)
+	if err != nil {
+		runtime.LogError(a.ctx, "Failed to read Modbus registers: "+err.Error())
+		return []BoilerData{}
 	}
 
 	// Ensure we have enough data to populate the BoilerData struct
@@ -162,7 +170,22 @@ func (a *App) Connect(plantID, comPort string) string {
 		runtime.LogError(a.ctx, "Failed to save config: "+err.Error())
 	}
 
+	// Start periodic reading of Modbus registers
+	go a.startPeriodicReading()
+
 	return "Connected to " + comPort
+}
+
+func (a *App) startPeriodicReading() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		boilerData := a.GetBoilerData()
+		if len(boilerData) > 0 {
+			runtime.LogInfo(a.ctx, fmt.Sprintf("Boiler Data: %+v", boilerData[0]))
+		}
+	}
 }
 
 func (a *App) IsModbusConnected() bool {
@@ -188,3 +211,4 @@ func (a *App) loadConfig() (Config, error) {
 	err = json.Unmarshal(data, &config)
 	return config, err
 }
+
