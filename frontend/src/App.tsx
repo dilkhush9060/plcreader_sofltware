@@ -52,6 +52,9 @@ export default function App() {
     const plantId = (form.elements[0] as HTMLInputElement).value;
     const comPort = (form.elements[1] as HTMLInputElement).value;
     await SaveConfig({ comPort, plantId });
+    LoadConfig().then((data) => {
+      setConfigs(data);
+    });
   };
 
   // load & save configs
