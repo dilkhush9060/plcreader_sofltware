@@ -171,7 +171,7 @@ export default function App() {
           disabled={isModbusConnected}
           className="bg-gray-700 text-white px-4 py-2 rounded-md font-medium uppercase disabled:bg-gray-400"
           onClick={async () => {
-            const res = await Connect(configs.plantId, configs.comPort);
+            const res = await Connect(configs.comPort);
             setIsModbusConnected(res);
           }}
         >
