@@ -96,8 +96,8 @@ func (a *App) PLC_DATA() ([]byte, error) {
 		return nil, fmt.Errorf("Modbus client not connected")
 	}
 
-	startAddress := uint16(368)
-	quantity := uint16(42)
+	startAddress := uint16(4466)
+	quantity := uint16(10)
 
 	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
 	if err != nil {
