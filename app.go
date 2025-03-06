@@ -19,12 +19,18 @@ type App struct {
 	isModbusConnected bool
 }
 
+// Config struct for storing application configuration
 type Config struct {
 	PlantID string `json:"plantId"`
 	COMPort string `json:"comPort"`
 }
 
-
+// PLCDataResponse represents the structured response for PLC_DATA
+type PLCDataResponse struct {
+	Success bool      `json:"success"`
+	Data    []uint16  `json:"data"`
+	Error   string    `json:"error,omitempty"`
+}
 
 // NewApp creates a new App application struct
 func NewApp() *App {
@@ -38,6 +44,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
+// SaveConfig saves the configuration to a JSON file
 func (a *App) SaveConfig(config Config) error {
 	configPath := filepath.Join(".", "config.json")
 	data, err := json.MarshalIndent(config, "", "  ")
@@ -50,6 +57,7 @@ func (a *App) SaveConfig(config Config) error {
 	return nil
 }
 
+// LoadConfig loads the configuration from a JSON file
 func (a *App) LoadConfig() (Config, error) {
 	configPath := filepath.Join(".", "config.json")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -69,6 +77,7 @@ func (a *App) LoadConfig() (Config, error) {
 	return config, nil
 }
 
+// Connect establishes a Modbus connection to the specified COM port
 func (a *App) Connect(comPort string) bool {
 	handler := modbus.NewASCIIClientHandler(comPort)
 	handler.BaudRate = 9600
@@ -91,21 +100,52 @@ func (a *App) Connect(comPort string) bool {
 	return true
 }
 
-func (a *App) PLC_DATA() ([]byte, error) {
+// PLC_DATA reads data from Modbus holding registers and returns it as JSON
+func (a *App) PLC_DATA() (string, error) {
+	response := PLCDataResponse{
+		Success: false,
+		Data:    nil,
+		Error:   "",
+	}
+
 	if !a.isModbusConnected {
-		return nil, fmt.Errorf("Modbus client not connected")
+		response.Error = "Modbus client not connected"
+		return a.marshalResponse(response)
 	}
 
 	startAddress := uint16(4466)
-	quantity := uint16(10)
+	quantity := uint16(2) // Start with a smaller quantity for debugging
 
 	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
 	if err != nil {
-		runtime.LogError(a.ctx, fmt.Sprintf("Error reading holding registers: %v", err))
-		return nil, err
+		response.Error = fmt.Sprintf("Error reading holding registers: %v", err)
+		runtime.LogError(a.ctx, response.Error)
+		return a.marshalResponse(response)
 	}
 
+	// Convert raw byte data to []uint16
+	registerValues := make([]uint16, 0, quantity)
+	for i := 0; i < len(results); i += 2 {
+		if i+1 >= len(results) {
+			break
+		}
+		value := uint16(results[i])<<8 | uint16(results[i+1])
+		registerValues = append(registerValues, value)
+	}
 
+	response.Success = true
+	response.Data = registerValues
 	runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d holding registers starting at address %d", quantity, startAddress))
-	return results, nil
+
+	return a.marshalResponse(response)
+}
+
+// marshalResponse converts the PLCDataResponse struct to JSON
+func (a *App) marshalResponse(response PLCDataResponse) (string, error) {
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		runtime.LogError(a.ctx, fmt.Sprintf("Failed to marshal response: %v", err))
+		return "", err
+	}
+	return string(jsonData), nil
 }
