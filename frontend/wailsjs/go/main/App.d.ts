@@ -6,6 +6,6 @@ export function Connect(arg1:string):Promise<boolean>;
 
 export function LoadConfig():Promise<main.Config>;
 
-export function PLC_DATA():Promise<boolean>;
+export function PLC_DATA():Promise<Array<main.BoilerData>>;
 
 export function SaveConfig(arg1:main.Config):Promise<void>;

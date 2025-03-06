@@ -122,22 +122,25 @@ func (a *App) Connect(comPort string) bool {
 
 
 // get plc data
-func (a *App) PLC_DATA() bool{
-	// data
-	startAddress := uint16(4097)
-  quantity := uint16(2)
+func (a *App) PLC_DATA() ([]BoilerData, error) {
+	startAddress := uint16(4466)
+	quantity := uint16(20)
 
-		// result
 	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
 	if err != nil {
-		runtime.LogInfo(a.ctx,"error reading holding registers: %v")
-		return false
+		runtime.LogError(a.ctx, fmt.Sprintf("Error reading holding registers: %v", err))
+		return nil, err
 	}
 
-	// Print the results
-	fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
-	for i, value := range results {
-			fmt.Printf("Register %d (address %d): %d\n", i, startAddress+uint16(i), value)
+	var boilerDataArray []BoilerData
+	for i := 0; i < len(results); i += 2 {
+		boilerData := BoilerData{
+			ID: i / 2,
+			ReactorTemp: int(results[i])<<8 | int(results[i+1]),
+		}
+		boilerDataArray = append(boilerDataArray, boilerData)
 	}
-	 return true
+
+	runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d holding registers starting at address %d", quantity, startAddress))
+	return boilerDataArray, nil
 }
