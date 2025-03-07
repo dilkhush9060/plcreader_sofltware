@@ -104,7 +104,7 @@ func (a *App) PLC_DATA() ([]uint16, error) {
     var allData []uint16
 
     // Read first 10 registers (4466-4475)
-    results1, err1 := a.client.ReadHoldingRegisters(4466, 10)
+    results1, err1 := a.client.ReadHoldingRegisters(uint16(4466), uint16(10))
     if err1 != nil {
         err := fmt.Errorf("error reading registers 4466-4475: %v", err1)
         runtime.LogError(a.ctx, err.Error())
