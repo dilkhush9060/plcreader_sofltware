@@ -97,26 +97,26 @@ func (a *App) Connect(comPort string) bool {
     return true
 }
 
-
-
 func (a *App) PLC_DATA() []uint16 {
 	if !a.isModbusConnected {
-		log.Println("Modbus client not connected")
+		log.Println("❌ Modbus client not connected")
 		return nil
 	}
 
 	const startAddress = 4466
 	const totalRegisters = 45
 
-	// Read all registers at once
+	// Read All 45 Registers in One Shot
 	results, err := a.client.ReadHoldingRegisters(startAddress, totalRegisters)
 	if err != nil {
 		log.Printf("❌ Error reading registers: %v", err)
 		return nil
 	}
 
+    println(results)
+
 	if len(results) != int(totalRegisters*2) {
-		log.Println("❌ Data length mismatch")
+		log.Printf("❌ Data length mismatch. Received: %d bytes, Expected: %d bytes", len(results), totalRegisters*2)
 		return nil
 	}
 
@@ -125,7 +125,7 @@ func (a *App) PLC_DATA() []uint16 {
 		value := binary.BigEndian.Uint16(results[i : i+2])
 		allData = append(allData, value)
 
-		// Log all values (including 0)
+		// ✅ This will log **0** values also
 		log.Printf("Register %d (Address %d): %d", i/2, startAddress+uint16(i/2), value)
 	}
 
