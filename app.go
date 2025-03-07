@@ -120,7 +120,7 @@ func (a *App) PLC_DATA() []uint16 {
 
 	var allData []uint16
 	for i := 0; i < len(results); i += 2 {
-		value := binary.BigEndian.Uint16(results[i : i+2]) // Convert byte to uint16
+		value := binary.BigEndian.Uint16(results[i : i+2])
 		allData = append(allData, value)
 		log.Printf("Register %d (Address %d): %d", i/2, startAddress+uint16(i/2), value)
 	}
