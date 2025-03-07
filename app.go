@@ -86,7 +86,7 @@ func (a *App) Connect(comPort string) bool {
     handler.Parity = "E"
     handler.StopBits = 1
     handler.SlaveId = 1
-    handler.Timeout = 10 * time.Second
+    handler.Timeout = 5 * time.Second
 
     err := handler.Connect()
     if err != nil {
@@ -101,6 +101,8 @@ func (a *App) Connect(comPort string) bool {
     return true
 }
 
+
+
 // bytesToUint16 converts a byte slice to uint16 slice assuming big-endian encoding
 func bytesToUint16(byteSlice []byte) []uint16 {
     if len(byteSlice)%2 != 0 {
@@ -113,7 +115,7 @@ func bytesToUint16(byteSlice []byte) []uint16 {
     return result
 }
 
-// PLC_DATA reads data from Modbus holding registers and returns structured data
+// PLC_DATA reads registers 4466-4507 in chunks of 10, 10, 10, and 12
 func (a *App) PLC_DATA() PLCDataResponse {
     response := PLCDataResponse{
         Success: false,
@@ -123,72 +125,98 @@ func (a *App) PLC_DATA() PLCDataResponse {
 
     if !a.isModbusConnected {
         response.Error = "Modbus client not connected"
+        runtime.LogError(a.ctx, response.Error)
         return response
     }
 
-    // Slice to collect all register values
     var allData []uint16
 
-    // Read first set of registers (4466-4479)
-    results1, err1 := a.client.ReadHoldingRegisters(4466, 14)
+    // Read first 10 registers (4466-4475)
+    results1, err1 := a.client.ReadHoldingRegisters(4466, 10)
     if err1 != nil {
-        response.Error = fmt.Sprintf("error reading registers 4466-4479: %v", err1)
+        response.Error = fmt.Sprintf("error reading registers 4466-4475: %v", err1)
         runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results1))
         return response
     }
     values1 := bytesToUint16(results1)
     if values1 == nil {
-        response.Error = "error converting bytes to uint16 for registers 4466-4479"
+        response.Error = "error converting bytes to uint16 for registers 4466-4475, invalid data length"
         runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw bytes: %v", results1))
         return response
     }
     allData = append(allData, values1...)
 
-    // Read second set of registers (4480-4493)
-    results2, err2 := a.client.ReadHoldingRegisters(4480, 14)
+    // Read second 10 registers (4476-4485)
+    results2, err2 := a.client.ReadHoldingRegisters(4476, 10)
     if err2 != nil {
-        response.Error = fmt.Sprintf("error reading registers 4480-4493: %v", err2)
+        response.Error = fmt.Sprintf("error reading registers 4476-4485: %v", err2)
         runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results2))
         return response
     }
     values2 := bytesToUint16(results2)
     if values2 == nil {
-        response.Error = "error converting bytes to uint16 for registers 4480-4493"
+        response.Error = "error converting bytes to uint16 for registers 4476-4485, invalid data length"
         runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw bytes: %v", results2))
         return response
     }
     allData = append(allData, values2...)
 
-    // Read third set of registers (4494-4507)
-    results3, err3 := a.client.ReadHoldingRegisters(4494, 14)
+    // Read third 10 registers (4486-4495)
+    results3, err3 := a.client.ReadHoldingRegisters(4486, 10)
     if err3 != nil {
-        response.Error = fmt.Sprintf("error reading registers 4494-4507: %v", err3)
+        response.Error = fmt.Sprintf("error reading registers 4486-4495: %v", err3)
         runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results3))
         return response
     }
     values3 := bytesToUint16(results3)
     if values3 == nil {
-        response.Error = "error converting bytes to uint16 for registers 4494-4507"
+        response.Error = "error converting bytes to uint16 for registers 4486-4495, invalid data length"
         runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw bytes: %v", results3))
         return response
     }
     allData = append(allData, values3...)
+
+    // Read remaining 12 registers (4496-4505)
+    results4, err4 := a.client.ReadHoldingRegisters(4496, 10)
+    if err4 != nil {
+        response.Error = fmt.Sprintf("error reading registers 4496-4505: %v", err4)
+        runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results4))
+        return response
+    }
+    values4 := bytesToUint16(results4)
+    if values4 == nil {
+        response.Error = "error converting bytes to uint16 for registers 4496-4507, invalid data length"
+        runtime.LogError(a.ctx, response.Error)
+        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw bytes: %v", results4))
+        return response
+    }
+    allData = append(allData, values4...)
 
     // Log the results
     for i, value := range values1 {
         runtime.LogInfo(a.ctx, fmt.Sprintf("Register %d (address %d): %d", i, 4466+i, value))
     }
     for i, value := range values2 {
-        runtime.LogInfo(a.ctx, fmt.Sprintf("Register %d (address %d): %d", i, 4480+i, value))
+        runtime.LogInfo(a.ctx, fmt.Sprintf("Register %d (address %d): %d", i, 4476+i, value))
     }
     for i, value := range values3 {
-        runtime.LogInfo(a.ctx, fmt.Sprintf("Register %d (address %d): %d", i, 4494+i, value))
+        runtime.LogInfo(a.ctx, fmt.Sprintf("Register %d (address %d): %d", i, 4486+i, value))
+    }
+    for i, value := range values4 {
+        runtime.LogInfo(a.ctx, fmt.Sprintf("Register %d (address %d): %d", i, 4496+i, value))
     }
 
     // Set successful response
     response.Success = true
     response.Data = allData
-		println(allData)
+    runtime.LogInfo(a.ctx, "Successfully read PLC data (42 registers from 4466-4507 in chunks)")
 
     return response
 }
