@@ -99,39 +99,63 @@ func (a *App) Connect(comPort string) bool {
 
 // PLC_DATA reads data from Modbus holding registers and returns structured data
 func (a *App) PLC_DATA() []uint16 {
-	if !a.isModbusConnected {
-		log.Println("Modbus client not connected")
-		return nil
-	}
+    if !a.isModbusConnected {
+        log.Println("Modbus client not connected")
+        return nil
+    }
 
-	registerRanges := []struct {
-		start  uint16
-		length uint16
-	}{
-		{4466, 8},
-		{4474, 8},
-		{4482, 8},
-	}
+    registerRanges := []struct {
+        start  uint16
+        length uint16
+    }{
+        {4466, 8},
+        {4474, 8},
+        {4482, 8},
+    }
 
-	var allData []uint16
+    var allData []uint16
+    const maxRetries = 3
+    const retryDelay = 500 * time.Millisecond
 
-	for _, reg := range registerRanges {
-		results, err := a.client.ReadHoldingRegisters(reg.start, reg.length)
-		if err != nil {
-			log.Printf("Error reading registers %d-%d: %v", reg.start, reg.start+reg.length-1, err)
-			return nil
-		}
+    for _, reg := range registerRanges {
+        var results []byte
+        var err error
+        
+        // Retry mechanism for timeout errors
+        for attempt := 0; attempt < maxRetries; attempt++ {
+            results, err = a.client.ReadHoldingRegisters(reg.start, reg.length)
+            if err == nil {
+                break
+            }
+            
+            if err.Error() == "serial: timeout" {
+                log.Printf("Timeout reading registers %d-%d (attempt %d/%d)", 
+                    reg.start, reg.start+reg.length-1, attempt+1, maxRetries)
+                if attempt < maxRetries-1 {
+                    time.Sleep(retryDelay)
+                    continue
+                }
+            }
+            
+            log.Printf("Error reading registers %d-%d: %v", 
+                reg.start, reg.start+reg.length-1, err)
+            return nil
+        }
 
-		// Convert []byte to []uint16
-		for i := 0; i < len(results); i += 2 {
-			value := binary.BigEndian.Uint16(results[i : i+2])
-			allData = append(allData, value)
-			log.Printf("Register %d (Address %d): %d", i/2, reg.start+uint16(i/2), value)
-		}
-	}
+        if err != nil {
+            return nil // Return nil if all retries failed
+        }
 
-	log.Println("Successfully read all registers")
-	log.Println(allData)
-	return allData
+        // Convert []byte to []uint16
+        for i := 0; i < len(results); i += 2 {
+            value := binary.BigEndian.Uint16(results[i : i+2])
+            allData = append(allData, value)
+            log.Printf("Register %d (Address %d): %d", 
+                i/2, reg.start+uint16(i/2), value)
+        }
+    }
+
+    log.Println("Successfully read all registers")
+    log.Println(allData)
+    return allData
 }
-

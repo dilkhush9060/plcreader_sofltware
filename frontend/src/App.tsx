@@ -125,7 +125,7 @@ export default function App() {
 
     if (isModbusConnected) {
       fetchAndSendData();
-      interval = setInterval(fetchAndSendData, 5000) as unknown as number;
+      interval = setInterval(fetchAndSendData, 10000) as unknown as number;
     }
 
     return () => {
