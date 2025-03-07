@@ -121,12 +121,47 @@ func (a *App) PLC_DATA() bool{
 	}
 
 
-	println(results)
 
-	// Print the results
+	results2, err2 := a.client.ReadHoldingRegisters(startAddress, quantity)
+	if err2 != nil {
+		fmt.Errorf("error reading holding registers: %v", err2)
+			return false
+	}
+
+	results3, err3 := a.client.ReadHoldingRegisters(startAddress, quantity)
+	if err3 != nil {
+		fmt.Errorf("error reading holding registers: %v", err3)
+			return false
+	}
+
+	
+	// Print the results1
 	fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
 	for i, value := range results {
-			fmt.Printf("Register %d (address %d): %d\n", i, startAddress+uint16(i), value)
+		fmt.Printf("Register %d (address %d): %d\n", i, startAddress+uint16(i), value)
 	}
+	println(results)
+
+
+		// Print the results3
+		fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
+		for j, value2 := range results {
+			fmt.Printf("Register %d (address %d): %d\n", j, startAddress+uint16(j), value2)
+		}
+		println(results2)
+	
+
+			// Print the results3
+	fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
+	for k, value3 := range results3 {
+		fmt.Printf("Register %d (address %d): %d\n", k, startAddress+uint16(k), value3)
+	}
+	println(results3)
+
+
+
+
+
+
 	return false
 }
