@@ -122,7 +122,7 @@ func (a *App) PLC_DATA() []uint16 {
 	}
 
 	log.Println("✅ Successfully read all 45 registers")
-	log.Println("Collected Data:", allData)
+	log.Println("Collected Data", allData)
 
 	return allData
 }
