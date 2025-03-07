@@ -112,9 +112,7 @@ func (a *App) PLC_DATA() bool{
 		response.Error = "Modbus client not connected"
 	}
 
-	startAddress := uint16(4466) 
-	quantity := uint16(50) 
-	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
+	results, err := a.client.ReadHoldingRegisters(uint16(4466),uint16(14))
 	if err != nil {
 		fmt.Errorf("error reading holding registers: %v", err)
 			return false
@@ -122,13 +120,13 @@ func (a *App) PLC_DATA() bool{
 
 
 
-	results2, err2 := a.client.ReadHoldingRegisters(startAddress, quantity)
+	results2, err2 := a.client.ReadHoldingRegisters(uint16(4480),uint16(14))
 	if err2 != nil {
 		fmt.Errorf("error reading holding registers: %v", err2)
 			return false
 	}
 
-	results3, err3 := a.client.ReadHoldingRegisters(startAddress, quantity)
+	results3, err3 := a.client.ReadHoldingRegisters(uint16(4494), uint16(14))
 	if err3 != nil {
 		fmt.Errorf("error reading holding registers: %v", err3)
 			return false
@@ -136,25 +134,24 @@ func (a *App) PLC_DATA() bool{
 
 	
 	// Print the results1
-	fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
 	for i, value := range results {
-		fmt.Printf("Register %d (address %d): %d\n", i, startAddress+uint16(i), value)
+		fmt.Printf("Register %d (address %d): %d\n", i, uint16(4466)+uint16(i), value)
 	}
 	println(results)
 
 
 		// Print the results3
-		fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
+	
 		for j, value2 := range results {
-			fmt.Printf("Register %d (address %d): %d\n", j, startAddress+uint16(j), value2)
+			fmt.Printf("Register %d (address %d): %d\n", j, uint16(4480)+uint16(j), value2)
 		}
 		println(results2)
 	
 
 			// Print the results3
-	fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
+	
 	for k, value3 := range results3 {
-		fmt.Printf("Register %d (address %d): %d\n", k, startAddress+uint16(k), value3)
+		fmt.Printf("Register %d (address %d): %d\n", k, uint16(4494)+uint16(k), value3)
 	}
 	println(results3)
 
