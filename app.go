@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,13 +23,6 @@ type App struct {
 type Config struct {
     PlantID string `json:"plantId"`
     COMPort string `json:"comPort"`
-}
-
-// PLCDataResponse represents the structured response for PLC_DATA
-type PLCDataResponse struct {
-    Success bool   `json:"success"`
-    Data    string `json:"data"` // Changed to string for hex-encoded data
-    Error   string `json:"error,omitempty"`
 }
 
 // NewApp creates a new App application struct
@@ -101,74 +93,33 @@ func (a *App) Connect(comPort string) bool {
     return true
 }
 
-// PLC_DATA reads registers 4466-4507 in chunks and returns hex-encoded string
-func (a *App) PLC_DATA() PLCDataResponse {
-    response := PLCDataResponse{
-        Success: false,
-        Data:    "",
-        Error:   "",
-    }
-
+// PLC_DATA reads registers 4466-4507 in chunks and returns uint16 values
+func (a *App) PLC_DATA() ([]uint16, error) {
     if !a.isModbusConnected {
-        response.Error = "Modbus client not connected"
-        runtime.LogError(a.ctx, response.Error)
-        return response
+        err := fmt.Errorf("Modbus client not connected")
+        runtime.LogError(a.ctx, err.Error())
+        return nil, err
     }
 
-    var allData []byte
+    var allData []uint16
 
     // Read first 10 registers (4466-4475)
     results1, err1 := a.client.ReadHoldingRegisters(4466, 10)
     if err1 != nil {
-        response.Error = fmt.Sprintf("error reading registers 4466-4475: %v", err1)
-        runtime.LogError(a.ctx, response.Error)
+        err := fmt.Errorf("error reading registers 4466-4475: %v", err1)
+        runtime.LogError(a.ctx, err.Error())
         runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results1))
-        return response
+        return nil, err
     }
-    allData = append(allData, results1...)
-
-    // Read second 10 registers (4476-4485)
-    results2, err2 := a.client.ReadHoldingRegisters(4476, 10)
-    if err2 != nil {
-        response.Error = fmt.Sprintf("error reading registers 4476-4485: %v", err2)
-        runtime.LogError(a.ctx, response.Error)
-        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results2))
-        return response
+    for i := 0; i < len(results1); i += 2 {
+        allData = append(allData, uint16(results1[i])<<8|uint16(results1[i+1]))
     }
-    allData = append(allData, results2...)
 
-    // Read third 10 registers (4486-4495)
-    results3, err3 := a.client.ReadHoldingRegisters(4486, 10)
-    if err3 != nil {
-        response.Error = fmt.Sprintf("error reading registers 4486-4495: %v", err3)
-        runtime.LogError(a.ctx, response.Error)
-        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results3))
-        return response
-    }
-    allData = append(allData, results3...)
 
-    // Read remaining 12 registers (4496-4507)
-    results4, err4 := a.client.ReadHoldingRegisters(4496, 12)
-    if err4 != nil {
-        response.Error = fmt.Sprintf("error reading registers 4496-4507: %v", err4)
-        runtime.LogError(a.ctx, response.Error)
-        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results4))
-        return response
-    }
-    allData = append(allData, results4...)
+    
 
-    // Convert raw bytes to hex string
-    hexData := hex.EncodeToString(allData)
+    runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d uint16 values from PLC (registers 4466-4507)", len(allData)))
+    runtime.LogDebug(a.ctx, fmt.Sprintf("Values: %v", allData))
 
-    // Log the raw bytes and hex string for debugging
-    runtime.LogInfo(a.ctx, fmt.Sprintf("Raw data length: %d bytes", len(allData)))
-    runtime.LogDebug(a.ctx, fmt.Sprintf("Raw bytes: %v", allData))
-    runtime.LogInfo(a.ctx, fmt.Sprintf("Hex-encoded data: %s", hexData))
-
-    // Set successful response
-    response.Success = true
-    response.Data = hexData
-    runtime.LogInfo(a.ctx, "Successfully read PLC data (42 registers from 4466-4507 as hex string)")
-
-    return response
+    return allData, nil
 }
