@@ -101,7 +101,7 @@ func (a *App) Connect(comPort string) bool {
 }
 
 // PLC_DATA reads data from Modbus holding registers and returns it as JSON
-func (a *App) PLC_DATA() (string, error) {
+func (a *App) PLC_DATA() bool{
 	response := PLCDataResponse{
 		Success: false,
 		Data:    nil,
@@ -110,63 +110,23 @@ func (a *App) PLC_DATA() (string, error) {
 
 	if !a.isModbusConnected {
 		response.Error = "Modbus client not connected"
-		return a.marshalResponse(response)
 	}
 
-	startAddress := uint16(4466) // Starting address
-	quantity := uint16(50)       // Total number of registers to read
-	chunkSize := uint16(10)      // Number of registers to read in each request
-
-	registerValues := make([]uint16, 0, quantity)
-
-	for i := uint16(0); i < quantity; i += chunkSize {
-		chunkStart := startAddress + i
-		chunkQuantity := chunkSize
-		if i+chunkSize > quantity {
-			chunkQuantity = quantity - i
-		}
-
-		results, err := a.client.ReadHoldingRegisters(chunkStart, chunkQuantity)
-		if err != nil {
-			response.Error = fmt.Sprintf("Error reading holding registers at address %d: %v", chunkStart, err)
-			runtime.LogError(a.ctx, response.Error)
-			// Log raw data for debugging
-			runtime.LogDebug(a.ctx, fmt.Sprintf("Raw data: %x", results))
-			return a.marshalResponse(response)
-		}
-
-		// Log raw data for debugging
-		runtime.LogDebug(a.ctx, fmt.Sprintf("Raw data: %x", results))
-
-		// Check if the data length is valid
-		if len(results) != int(chunkQuantity)*2 { // Each register is 2 bytes
-			response.Error = fmt.Sprintf("Invalid data length: expected %d bytes, got %d", chunkQuantity*2, len(results))
-			runtime.LogError(a.ctx, response.Error)
-			return a.marshalResponse(response)
-		}
-
-		// Convert raw byte data to []uint16
-		for i := 0; i < len(results); i += 2 {
-			if i+1 >= len(results) {
-				break
-			}
-			value := uint16(results[i])<<8 | uint16(results[i+1])
-			registerValues = append(registerValues, value)
-		}
-	}
-
-	response.Success = true
-	response.Data = registerValues
-	runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d holding registers starting at address %d", quantity, startAddress))
-
-	return a.marshalResponse(response)
-}
-// marshalResponse converts the PLCDataResponse struct to JSON
-func (a *App) marshalResponse(response PLCDataResponse) (string, error) {
-	jsonData, err := json.Marshal(response)
+	startAddress := uint16(4466) 
+	quantity := uint16(50) 
+	results, err := a.client.ReadHoldingRegisters(startAddress, quantity)
 	if err != nil {
-		runtime.LogError(a.ctx, fmt.Sprintf("Failed to marshal response: %v", err))
-		return "", err
+		fmt.Errorf("error reading holding registers: %v", err)
+			return false
 	}
-	return string(jsonData), nil
+
+
+	println(results)
+
+	// Print the results
+	fmt.Printf("Successfully read %d holding registers starting at address %d:\n", quantity, startAddress)
+	for i, value := range results {
+			fmt.Printf("Register %d (address %d): %d\n", i, startAddress+uint16(i), value)
+	}
+	return false
 }
