@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -24,6 +26,8 @@ type Config struct {
     PlantID string `json:"plantId"`
     COMPort string `json:"comPort"`
 }
+
+
 
 // NewApp creates a new App application struct
 func NewApp() *App {
@@ -78,12 +82,12 @@ func (a *App) Connect(comPort string) bool {
     handler.Parity = "E"
     handler.StopBits = 1
     handler.SlaveId = 1
-    handler.Timeout = 5 * time.Second
+    handler.Timeout = 10 * time.Second
 
     err := handler.Connect()
     if err != nil {
         a.isModbusConnected = false
-        runtime.LogError(a.ctx, fmt.Sprintf("Failed to connect with ASCII 7E1 to %s: %v", err))
+        runtime.LogError(a.ctx, fmt.Sprintf("Failed to connect with ASCII 7E1 to %s: %v", comPort, err))
         return false
     }
 
@@ -93,33 +97,41 @@ func (a *App) Connect(comPort string) bool {
     return true
 }
 
-// PLC_DATA reads registers 4466-4507 in chunks and returns uint16 values
-func (a *App) PLC_DATA() ([]uint16, error) {
-    if !a.isModbusConnected {
-        err := fmt.Errorf("Modbus client not connected")
-        runtime.LogError(a.ctx, err.Error())
-        return nil, err
-    }
+// PLC_DATA reads data from Modbus holding registers and returns structured data
+func (a *App) PLC_DATA() []uint16 {
+	if !a.isModbusConnected {
+		log.Println("Modbus client not connected")
+		return nil
+	}
 
-    var allData []uint16
+	registerRanges := []struct {
+		start  uint16
+		length uint16
+	}{
+		{4466, 8},
+		{4474, 8},
+		{4482, 8},
+	}
 
-    // Read first 10 registers (4466-4475)
-    results1, err1 := a.client.ReadHoldingRegisters(uint16(4466), uint16(10))
-    if err1 != nil {
-        err := fmt.Errorf("error reading registers 4466-4475: %v", err1)
-        runtime.LogError(a.ctx, err.Error())
-        runtime.LogDebug(a.ctx, fmt.Sprintf("Raw response (if any): %v", results1))
-        return nil, err
-    }
-    for i := 0; i < len(results1); i += 2 {
-        allData = append(allData, uint16(results1[i])<<8|uint16(results1[i+1]))
-    }
+	var allData []uint16
 
+	for _, reg := range registerRanges {
+		results, err := a.client.ReadHoldingRegisters(reg.start, reg.length)
+		if err != nil {
+			log.Printf("Error reading registers %d-%d: %v", reg.start, reg.start+reg.length-1, err)
+			return nil
+		}
 
-    
+		// Convert []byte to []uint16
+		for i := 0; i < len(results); i += 2 {
+			value := binary.BigEndian.Uint16(results[i : i+2])
+			allData = append(allData, value)
+			log.Printf("Register %d (Address %d): %d", i/2, reg.start+uint16(i/2), value)
+		}
+	}
 
-    runtime.LogInfo(a.ctx, fmt.Sprintf("Successfully read %d uint16 values from PLC (registers 4466-4507)", len(allData)))
-    runtime.LogDebug(a.ctx, fmt.Sprintf("Values: %v", allData))
-
-    return allData, nil
+	log.Println("Successfully read all registers")
+	log.Println(allData)
+	return allData
 }
+
