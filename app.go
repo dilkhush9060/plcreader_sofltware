@@ -217,6 +217,6 @@ func (a *App) PLC_DATA() PLCDataResponse {
     response.Success = true
     response.Data = allData
     runtime.LogInfo(a.ctx, "Successfully read PLC data (42 registers from 4466-4507 in chunks)")
-
+		println(allData)
     return response
 }
