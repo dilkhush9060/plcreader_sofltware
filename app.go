@@ -98,7 +98,6 @@ func (a *App) Connect(comPort string) bool {
 }
 
 
-// plc data
 func (a *App) PLC_DATA() []uint16 {
 	if !a.isModbusConnected {
 		log.Println("Modbus client not connected")
@@ -106,38 +105,17 @@ func (a *App) PLC_DATA() []uint16 {
 	}
 
 	var allData []uint16
-	const maxRetries = 3
-	const retryDelay = 500 * time.Millisecond
 	const startAddress = 4466
 	const totalRegisters = 45
 
 	for i := uint16(0); i < totalRegisters; i++ {
-		var results []byte
-		var err error
-
-		// Retry for each register
-		for attempt := 1; attempt <= maxRetries; attempt++ {
-			results, err = a.client.ReadHoldingRegisters(startAddress+i, 1)
-			if err == nil {
-				break
-			}
-
-			if err.Error() == "serial: timeout" {
-				log.Printf("Timeout reading register %d (Attempt %d/%d)", startAddress+i, attempt, maxRetries)
-				time.Sleep(retryDelay)
-				continue
-			}
-
-			log.Printf("Error reading register %d: %v", startAddress+i, err)
-		}
-
+		results, err := a.client.ReadHoldingRegisters(startAddress+i, 1)
 		if err != nil {
-			log.Printf("Failed to read register %d after %d attempts", startAddress+i, maxRetries)
-			allData = append(allData, 0) // Append 0 if failed
+			log.Printf("Error reading register %d: %v", startAddress+i, err)
+			allData = append(allData, 0) 
 			continue
 		}
 
-		// Convert result to uint16
 		value := binary.BigEndian.Uint16(results)
 		allData = append(allData, value)
 		log.Printf("Register %d (Address %d): %d", i, startAddress+i, value)
