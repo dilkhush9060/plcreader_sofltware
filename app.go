@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -28,7 +29,7 @@ type Config struct {
 // PLCDataResponse represents the structured response for PLC_DATA
 type PLCDataResponse struct {
     Success bool   `json:"success"`
-    Data    []byte `json:"data"` // Changed from []uint16 to []byte
+    Data    string `json:"data"` // Changed to string for hex-encoded data
     Error   string `json:"error,omitempty"`
 }
 
@@ -100,13 +101,11 @@ func (a *App) Connect(comPort string) bool {
     return true
 }
 
-
-
-// PLC_DATA reads registers 4466-4507 in chunks and returns raw bytes
+// PLC_DATA reads registers 4466-4507 in chunks and returns hex-encoded string
 func (a *App) PLC_DATA() PLCDataResponse {
     response := PLCDataResponse{
         Success: false,
-        Data:    nil,
+        Data:    "",
         Error:   "",
     }
 
@@ -158,16 +157,18 @@ func (a *App) PLC_DATA() PLCDataResponse {
     }
     allData = append(allData, results4...)
 
-    // Log the raw bytes for debugging
+    // Convert raw bytes to hex string
+    hexData := hex.EncodeToString(allData)
+
+    // Log the raw bytes and hex string for debugging
     runtime.LogInfo(a.ctx, fmt.Sprintf("Raw data length: %d bytes", len(allData)))
     runtime.LogDebug(a.ctx, fmt.Sprintf("Raw bytes: %v", allData))
+    runtime.LogInfo(a.ctx, fmt.Sprintf("Hex-encoded data: %s", hexData))
 
     // Set successful response
     response.Success = true
-    response.Data = allData
-    runtime.LogInfo(a.ctx, "Successfully read PLC data (42 registers from 4466-4507 as raw bytes)")
-
-		println(allData)
+    response.Data = hexData
+    runtime.LogInfo(a.ctx, "Successfully read PLC data (42 registers from 4466-4507 as hex string)")
 
     return response
 }
