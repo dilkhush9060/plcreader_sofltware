@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -97,82 +98,58 @@ func (a *App) Connect(comPort string) bool {
 }
 
 
-// PLC_DATA reads data from Modbus holding registers and returns structured data
-func (a *App) PLC_DATA() ([]uint16, error) {
+// plc data
+func (a *App) PLC_DATA() []uint16 {
 	if !a.isModbusConnected {
-		runtime.LogError(a.ctx, "Modbus client not connected")
-		return nil, fmt.Errorf("modbus client not connected")
-	}
-
-	registerRanges := []struct {
-		start  uint16
-		length uint16
-	}{
-		{4466, 8}, // 4466-4473
-		{4474, 8}, // 4474-4481
-		{4482, 8}, // 4482-4489
-		{4490, 8}, // 4490-4497
-		{4498, 8}, // 4498-4505
-		{4506, 5}, // 4506-4510
+		log.Println("Modbus client not connected")
+		return nil
 	}
 
 	var allData []uint16
 	const maxRetries = 3
 	const retryDelay = 500 * time.Millisecond
+	const startAddress = 4466
+	const totalRegisters = 45
 
-	for _, reg := range registerRanges {
-		var results []byte
-		var err error
+	var results []byte
+	var err error
 
-		// Retry mechanism for timeout errors
-		for attempt := 0; attempt < maxRetries; attempt++ {
-			// Check for context cancellation
-			select {
-			case <-a.ctx.Done():
-				runtime.LogWarning(a.ctx, "PLC data read cancelled")
-				return nil, fmt.Errorf("operation cancelled: %v", a.ctx.Err())
-			default:
-			}
-
-			results, err = a.client.ReadHoldingRegisters(reg.start, reg.length)
-			if err == nil {
-				break
-			}
-
-			// Handle timeout errors
-			if err.Error() == "serial: timeout" {
-				runtime.LogWarning(a.ctx, fmt.Sprintf("Timeout reading registers %d-%d (attempt %d/%d)",
-					reg.start, reg.start+reg.length-1, attempt+1, maxRetries))
-				if attempt < maxRetries-1 {
-					time.Sleep(retryDelay)
-					continue
-				}
-			}
-
-			// Handle other errors
-			runtime.LogError(a.ctx, fmt.Sprintf("Error reading registers %d-%d: %v",
-				reg.start, reg.start+reg.length-1, err))
-			return nil, fmt.Errorf("failed to read registers %d-%d: %v",
-				reg.start, reg.start+reg.length-1, err)
+	// Retry mechanism
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		results, err = a.client.ReadHoldingRegisters(startAddress, totalRegisters)
+		if err == nil {
+			break
 		}
 
-		if err != nil {
-			runtime.LogError(a.ctx, fmt.Sprintf("Exhausted retries reading registers %d-%d",
-				reg.start, reg.start+reg.length-1))
-			return nil, fmt.Errorf("exhausted retries reading registers %d-%d",
-				reg.start, reg.start+reg.length-1)
+		if err.Error() == "serial: timeout" {
+			log.Printf("Timeout reading registers %d-%d (Attempt %d/%d)",
+				startAddress, startAddress+totalRegisters-1, attempt, maxRetries)
+			time.Sleep(retryDelay)
+			continue
 		}
 
-		// Convert []byte to []uint16
-		for i := 0; i < len(results); i += 2 {
-			value := binary.BigEndian.Uint16(results[i : i+2])
-			allData = append(allData, value)
-			runtime.LogDebug(a.ctx, fmt.Sprintf("Register %d (Address %d): %d",
-				i/2, reg.start+uint16(i/2), value))
-		}
+		log.Printf("Error reading registers %d-%d: %v",
+			startAddress, startAddress+totalRegisters-1, err)
 	}
 
-	runtime.LogInfo(a.ctx, "Successfully read all registers")
-	runtime.LogDebug(a.ctx, fmt.Sprintf("PLC Data: %v", allData))
-	return allData, nil
+	if err != nil {
+		log.Printf("Failed to read registers after %d attempts", maxRetries)
+		return nil
+	}
+
+	// Convert []byte to []uint16
+	for i := 0; i < len(results); i += 2 {
+		if i+1 >= len(results) {
+			log.Printf("Incomplete byte pair at register %d", startAddress+uint16(i/2))
+			continue
+		}
+		value := binary.BigEndian.Uint16(results[i : i+2])
+		allData = append(allData, value)
+		log.Printf("Register %d (Address %d): %d", i/2, startAddress+uint16(i/2), value)
+	}
+
+	log.Println("✅ Successfully read all registers in one request")
+	log.Println("Collected Data:", allData)
+
+	return allData
 }
