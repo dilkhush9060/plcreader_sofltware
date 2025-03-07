@@ -111,44 +111,39 @@ func (a *App) PLC_DATA() []uint16 {
 	const startAddress = 4466
 	const totalRegisters = 45
 
-	var results []byte
-	var err error
+	for i := uint16(0); i < totalRegisters; i++ {
+		var results []byte
+		var err error
 
-	// Retry mechanism
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		results, err = a.client.ReadHoldingRegisters(startAddress, totalRegisters)
-		if err == nil {
-			break
+		// Retry for each register
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			results, err = a.client.ReadHoldingRegisters(startAddress+i, 1)
+			if err == nil {
+				break
+			}
+
+			if err.Error() == "serial: timeout" {
+				log.Printf("Timeout reading register %d (Attempt %d/%d)", startAddress+i, attempt, maxRetries)
+				time.Sleep(retryDelay)
+				continue
+			}
+
+			log.Printf("Error reading register %d: %v", startAddress+i, err)
 		}
 
-		if err.Error() == "serial: timeout" {
-			log.Printf("Timeout reading registers %d-%d (Attempt %d/%d)",
-				startAddress, startAddress+totalRegisters-1, attempt, maxRetries)
-			time.Sleep(retryDelay)
+		if err != nil {
+			log.Printf("Failed to read register %d after %d attempts", startAddress+i, maxRetries)
+			allData = append(allData, 0) // Append 0 if failed
 			continue
 		}
 
-		log.Printf("Error reading registers %d-%d: %v",
-			startAddress, startAddress+totalRegisters-1, err)
-	}
-
-	if err != nil {
-		log.Printf("Failed to read registers after %d attempts", maxRetries)
-		return nil
-	}
-
-	// Convert []byte to []uint16
-	for i := 0; i < len(results); i += 2 {
-		if i+1 >= len(results) {
-			log.Printf("Incomplete byte pair at register %d", startAddress+uint16(i/2))
-			continue
-		}
-		value := binary.BigEndian.Uint16(results[i : i+2])
+		// Convert result to uint16
+		value := binary.BigEndian.Uint16(results)
 		allData = append(allData, value)
-		log.Printf("Register %d (Address %d): %d", i/2, startAddress+uint16(i/2), value)
+		log.Printf("Register %d (Address %d): %d", i, startAddress+i, value)
 	}
 
-	log.Println("✅ Successfully read all registers in one request")
+	log.Println("✅ Successfully read all 45 registers")
 	log.Println("Collected Data:", allData)
 
 	return allData
